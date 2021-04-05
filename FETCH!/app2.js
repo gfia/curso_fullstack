@@ -1,52 +1,130 @@
-//Crea un objeto para obtener la lista en el html
-const listaUsuarios = document.getElementById("listaUsuarios"); 
-//Crea un objeto para identificar el boton
-const mandarUsuarios = document.getElementById("mandarUsuarios"); 
-//Crea callback del xml request
-function reqListener()
-{
-    //Crea variable que arma un objeto con la response del request
-    const usuarios = JSON.parse(this.responseText);
-    //Hace console.log para check
-    console.log(usuarios);
-    //Crea una variable que arma un array para listar los parametros recibidos
-    const usuariosRender = usuarios
-    //Mapea cada usuario y lo agrega a la lista ejecutando lo siguiente del arrow
-    .map(usuario => `<li>${usuario.nombre}</li>`)//(considerar que el .nombre esta en el response ya que la URL devuelve un objeto con atributos nombre)
-    //Como es un array, si lo inyectamos directamente aparecerían las comas divisorias, el .join("") las desaparece
-    .join("");
-    //Hace console.log para checkear la inyeccion
-    console.log(usuariosRender);
-    //Inyecta la lista de usuarios en el HTML
-    listaUsuarios.innerHTML=usuariosRender;
-}
-//Crea función para enviar datos
-function enviarDatos() {
-    const datos = {nombre: "noF"}
-    const url = "https://bootcamp-dia-3.camilomontoyau.now.sh/usuarios";
-    fetch(url, {
-      method: 'POST', 
-      body: JSON.stringify(datos), // data can be `string` or {object}!
-      headers:{
-        'Content-Type': 'application/json'
-      }
+//Tabla con lista de usuarios
+const listaUsuarios = document.getElementById("body-usuarios");
+const enviar = document.getElementById("enviar");
+const limpiar = document.getElementById("limpiar");
+const nombre = document.getElementById("txtNombres");
+const apellido = document.getElementById("txtApellidos");
+const sexo = document.getElementById("selSexo");
+const indice = document.getElementById("indice");
+let usuarios = [];
+let botonesEliminar = null;
+let botonesEditar = null;
+
+function render() {
+  const usuariosRender = usuarios
+    .map((usuario, indice) => {
+      return `<tr>  
+        <td>${usuario.nombre ? usuario.nombre : 'vacio'}</td>
+        <td>${usuario.apellido ? usuario.apellido : 'vacio'}</td>
+        <td>${usuario.sexo ? usuario.sexo : 'vacio'}</td>
+        <td><a class="ver" href="/ajax/index2.html?usuario=${indice}">ver</a></td>
+        <td><button class="editar" data-indice=${indice}>Editar</button></td>
+        <td><button class="eliminar" data-indice=${indice}>Eliminar</button></td>
+      </tr>`
     })
-    .then((res) => res.json())
-    .then(resJSON=>console.log("Respuesta JSON:",resJSON))
-
-
-    //Y envía el siguiente texto
-    oReq.send("nombre=noFun2");
-    //Asigna un time out de 3 segundos y actualiza 
-    setTimeout(refrescar, 3000);
-  }
-
-//Crea una función para refresh llamado en el time out superior
-function refrescar() 
-{
-    //Genera una petición GET    
-    oReq.open("GET", "https://bootcamp-dia-3.camilomontoyau.now.sh/usuarios");
-    oReq.send();
+    .join("");
+  console.log(usuariosRender);
+  listaUsuarios.innerHTML = usuariosRender;
+  botonesEliminar = document.getElementsByClassName('eliminar');
+  botonesEditar = document.getElementsByClassName('editar');
+  Array.from(botonesEliminar).forEach(botonEliminar => {
+    botonEliminar.onclick = eliminarUnUsuario;
+  });
+  Array.from(botonesEditar).forEach(botonEditar => {
+    botonEditar.onclick = editarUnUsuario;
+  });
 }
-//Cuando hace click activa la funcion enviarDatos
-mandarUsuarios.onclick = enviarDatos;
+
+function enviarDatos(e) {
+  e.preventDefault();
+  let accion = e.target.innerText;
+  const datos = {
+    nombre: nombre.value, 
+    apellido: apellido.value, 
+    sexo: sexo.value
+  };
+  let url = null;
+  let method = null;
+  if(accion === 'Crear') {
+    url = 'https://bootcamp-dia-3.camilomontoyau.now.sh/usuarios';
+    method = 'POST';
+  } else if(accion === 'Editar') {
+    if(indice.value) {
+      url = `https://bootcamp-dia-3.camilomontoyau.now.sh/usuarios/${indice.value}`;
+      method = 'PUT'
+    } else {
+      return;
+    }
+  } else {
+    return;
+  }
+  fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(datos),
+    })
+    .then((response) => response.json())
+    .then(respuestaJson=>{
+      console.log('respuestaJson', respuestaJson)
+      refrescar();
+      restaurarBoton();
+    }).catch((razon)=>{
+      console.log(razon);
+      restaurarBoton();
+    })
+}
+
+function eliminarUnUsuario(e) {
+  e.preventDefault();
+  console.log('eliminarUnUsuario', e);
+  fetch(`https://bootcamp-dia-3.camilomontoyau.now.sh/usuarios/${e.target.dataset.indice}`, {
+      method: 'DELETE',
+    })
+    .then((response) => response.json())
+    .then(respuestaJson=>{
+      console.log('respuestaJson', respuestaJson)
+      refrescar();
+    })
+}
+
+function editarUnUsuario(e) {
+  e.preventDefault();
+  console.log('editarUnUsuario', e);
+  if(e.target.dataset.indice) {
+    const usuario = usuarios[e.target.dataset.indice];
+    nombre.value = usuario.nombre ? usuario.nombre : '';
+    apellido.value = usuario.apellido ? usuario.apellido : '';;
+    sexo.value = usuario.sexo ? usuario.sexo : '';
+    indice.value = e.target.dataset.indice;
+    enviar.innerText = 'Editar'
+  } else {
+    enviar.innerText = 'Crear'
+  }
+}
+
+
+function refrescar() {
+  fetch('https://bootcamp-dia-3.camilomontoyau.now.sh/usuarios')
+  .then(response=>response.json())
+  .then(respuestaUsuarios=>{
+    console.log('respuestaUsuarios', respuestaUsuarios)
+    usuarios = respuestaUsuarios
+    render();
+  })
+}
+//Create, Read, Update,  Delete, Listar
+
+function restaurarBoton () {
+  enviar.innerText = 'Crear';
+  indice.value= '';
+  nombre.value = '';
+  apellido.value = '';
+  sexo.value = ''
+}
+
+refrescar();
+
+enviar.onclick = enviarDatos;
+limpiar.onclick = restaurarBoton;
